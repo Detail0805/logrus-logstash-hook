@@ -2,7 +2,10 @@ package logrustash
 
 import (
 	"io"
+	"log"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -40,7 +43,52 @@ func (h Hook) Fire(e *logrus.Entry) error {
 		return err
 	}
 	_, err = h.writer.Write(dataBytes)
+	if err !=nil {
+		var lastExecTime time.Time
+		var l sync.RWMutex
+		ExecLimit(&lastExecTime, &l, 1, time.Second,func() {
+			logs(err.Error())
+		})
+		return nil
+	}
+	err=nil
 	return err
+}
+
+/**
+	maxTimes:次數
+	perDuration:時間區間
+ */
+func ExecLimit(lastExecTime *time.Time, l *sync.RWMutex ,maxTimes int, perDuration time.Duration, f func()) {
+	l.Lock()
+	defer l.Unlock()
+	// per times cost time(s)
+	SecondsPerTimes := float64(perDuration) / float64(time.Second) / float64(maxTimes)
+	now := time.Now()
+	interval := now.Sub(*lastExecTime).Seconds()
+	if interval < SecondsPerTimes {
+		//time.Sleep 還是會調用系統函數去等待,所以改成直接return
+		//time.Sleep(time.Duration(int64((SecondsPerTimes-interval)*1000000000)) * time.Nanosecond)
+		return
+	}
+	f()
+	*lastExecTime = time.Now()
+}
+
+
+func logs(errs string){
+	t := time.Now()
+	newTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	ld1Time := newTime.AddDate(0, 0, -1)
+	logDay := ld1Time.Format("20060102")
+	f, err := os.OpenFile(logDay, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+		return
+	}
+	defer f.Close()
+	log.SetOutput(f)
+	log.Println(errs)
 }
 
 // Levels returns all logrus levels.
