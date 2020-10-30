@@ -21,6 +21,10 @@ type Hook struct {
 	formatter logrus.Formatter
 }
 
+var (
+	lastExecTime = time.Now()
+	mux          = &sync.RWMutex{}
+)
 // New returns a new logrus.Hook for Logstash.
 //
 // To create a new hook that sends logs to `tcp://logstash.corp.io:9999`:
@@ -43,23 +47,21 @@ func (h Hook) Fire(e *logrus.Entry) error {
 		return err
 	}
 	_, err = h.writer.Write(dataBytes)
-	if err !=nil {
-		var lastExecTime time.Time
-		var l sync.RWMutex
-		ExecLimit(&lastExecTime, &l, 1, time.Second,func() {
+	if err != nil {
+		ExecLimit(&lastExecTime, mux, 1, time.Second, func() {
 			logs(err.Error())
 		})
 		return nil
 	}
-	err=nil
+	err = nil
 	return err
 }
 
 /**
-	maxTimes:次數
-	perDuration:時間區間
- */
-func ExecLimit(lastExecTime *time.Time, l *sync.RWMutex ,maxTimes int, perDuration time.Duration, f func()) {
+maxTimes:次數
+perDuration:時間區間
+*/
+func ExecLimit(lastExecTime *time.Time, l *sync.RWMutex, maxTimes int, perDuration time.Duration, f func()) {
 	l.Lock()
 	defer l.Unlock()
 	// per times cost time(s)
@@ -75,13 +77,12 @@ func ExecLimit(lastExecTime *time.Time, l *sync.RWMutex ,maxTimes int, perDurati
 	*lastExecTime = time.Now()
 }
 
-
-func logs(errs string){
+func logs(errs string) {
 	t := time.Now()
 	newTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	ld1Time := newTime.AddDate(0, 0, -1)
 	logDay := ld1Time.Format("20060102")
-	f, err := os.OpenFile(logDay, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	f, err := os.OpenFile(logDay, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 		return
