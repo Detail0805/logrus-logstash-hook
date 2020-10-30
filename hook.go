@@ -82,7 +82,8 @@ func logs(errs string) {
 	newTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	ld1Time := newTime.AddDate(0, 0, -1)
 	logDay := ld1Time.Format("20060102")
-	f, err := os.OpenFile(logDay, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	suffix:=".log"
+	f, err := os.OpenFile(logDay+suffix, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 		return
