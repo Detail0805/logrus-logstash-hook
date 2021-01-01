@@ -17,6 +17,7 @@ import (
 // To initialize it use the `New` function.
 //
 type Hook struct {
+
 	writer    io.Writer
 	formatter logrus.Formatter
 }
